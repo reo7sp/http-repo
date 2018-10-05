@@ -1,40 +1,43 @@
 import os
 from aiohttp import web
+from werkzeug.utils import secure_filename
+from binascii import crc32
 
 routes = web.RouteTableDef()
+
+
+def make_abs_path(rel_path, files_root):
+    rel_path = secure_filename(rel_path)
+    rel_path_hash = hex(crc32(rel_path.encode()))[2:]
+    abs_path = os.path.join(files_root, rel_path_hash[0:2], rel_path_hash[2:4], rel_path)
+    return abs_path
 
 
 @routes.get('/{path:.*}')
 async def handle_get(req):
     if 'path' not in req.match_info:
         raise web.HTTPBadRequest(text='path is required')
-    if '..' in req.match_info['path']:
-        raise web.HTTPBadRequest(text='path is invalid')
+    abs_path = make_abs_path(req.match_info['path'], req.app['files_root'])
 
-    file_path = os.path.join(req.app['files_root'], req.match_info['path'])
-
-    if not os.path.isfile(file_path):
+    if not os.path.isfile(abs_path):
         raise web.HTTPNotFound()
 
-    return web.FileResponse(file_path)
+    return web.FileResponse(abs_path)
 
 
 @routes.post('/{path:.*}')
 async def handle_post(req):
     if 'path' not in req.match_info:
         raise web.HTTPBadRequest(text='path is required')
-    if '..' in req.match_info['path']:
-        raise web.HTTPBadRequest(text='path is invalid')
-
-    file_path = os.path.join(req.app['files_root'], req.match_info['path'])
+    abs_path = make_abs_path(req.match_info['path'], req.app['files_root'])
 
     reader = await req.multipart()
 
     async for part in reader:
         if part.name == 'file':
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
             size = 0
-            with open(file_path, 'wb+') as f:
+            with open(abs_path, 'wb') as f:
                 while True:
                     chunk = await part.read_chunk()
                     if not chunk:
