@@ -31,7 +31,11 @@ async def handle_post(req):
         raise web.HTTPBadRequest(text='path is required')
     abs_path = make_abs_path(req.match_info['path'], req.app['files_root'])
 
-    reader = await req.multipart()
+    try:
+        reader = await req.multipart()
+    except:
+        return web.HTTPBadRequest(text='multipart request is required')
+    file_is_written = False
 
     async for part in reader:
         if part.name == 'file':
@@ -44,8 +48,12 @@ async def handle_post(req):
                         break
                     size += len(chunk)
                     f.write(chunk)
+            file_is_written = True
 
-    return web.Response(text='ok')
+    if file_is_written:
+        return web.Response(text='ok')
+    else:
+        return web.HTTPBadRequest(text='file is required')
 
 
 if __name__ == '__main__':
