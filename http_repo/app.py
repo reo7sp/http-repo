@@ -57,10 +57,8 @@ async def handle_post(req):
 
 
 if __name__ == '__main__':
-    try:
-        files_path = os.getenv('FILES_ROOT')
-        assert files_path is not None
-    except AssertionError:
+    files_path = os.getenv('FILES_ROOT')
+    if files_path is None:
         print('USAGE: python3 ./http_repo/app.py')
         print('Required envs: FILES_ROOT')
         exit(1)
